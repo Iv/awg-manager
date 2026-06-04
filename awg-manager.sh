@@ -39,7 +39,7 @@ SERVER_NAME="${SERVER_NAME:-awg0}"
 SERVER_IP_PREFIX="${SERVER_IP_PREFIX:-10.10.90}"
 SERVER_PORT="${SERVER_PORT:-43748}"
 SERVER_INTERFACE="${SERVER_INTERFACE:-$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)}"
-SERVER_HOST="${SERVER_HOST:-$SERVER_INTERFACE}"
+SERVER_HOST="${SERVER_HOST}"
 
 # Support --help
 for arg in "$@"; do
@@ -129,7 +129,12 @@ function remove_user_from_server {
 }
 
 function init {
-    if [ -z "$SERVER_HOST" ]; then
+    local EFFECTIVE_SERVER_HOST="${SERVER_HOST}"
+    if [ -z "$EFFECTIVE_SERVER_HOST" ]; then
+        EFFECTIVE_SERVER_HOST=$(ip -4 addr show dev "$SERVER_INTERFACE" | grep -Po '(?<=inet )(\d+\.\d+\.\d+\.\d+)' | head -1)
+    fi
+
+    if [ -z "$EFFECTIVE_SERVER_HOST" ]; then
         echo "ERROR: Server host required (use -s or SERVER_HOST in .env)" >&2
         exit 1
     fi
@@ -142,9 +147,10 @@ function init {
     fi
 
     echo "Interface: $SERVER_INTERFACE"
+    echo "Server Host: $EFFECTIVE_SERVER_HOST"
 
     mkdir -p "keys/${SERVER_NAME}"
-    echo -n "$SERVER_HOST" > "keys/.server"
+    echo -n "$EFFECTIVE_SERVER_HOST" > "keys/.server"
 
     if [ ! -f "keys/${SERVER_NAME}/private.key" ]; then
         awg genkey | tee "keys/${SERVER_NAME}/private.key" | awg pubkey > "keys/${SERVER_NAME}/public.key"
@@ -257,7 +263,20 @@ function create {
         return 0
     fi
 
-    local EFFECTIVE_SERVER_HOST="${SERVER_HOST:-$(cat "keys/.server")}"
+    local EFFECTIVE_SERVER_HOST="${SERVER_HOST}"
+    if [ -z "$EFFECTIVE_SERVER_HOST" ]; then
+        if [ -f "keys/.server" ]; then
+            EFFECTIVE_SERVER_HOST=$(cat "keys/.server")
+        else
+            EFFECTIVE_SERVER_HOST=$(ip -4 addr show dev "$SERVER_INTERFACE" | grep -Po '(?<=inet )(\d+\.\d+\.\d+\.\d+)' | head -1)
+        fi
+    fi
+
+    if [ -z "$EFFECTIVE_SERVER_HOST" ]; then
+        echo "ERROR: Can't determine server host. Set SERVER_HOST in .env or use -s" >&2
+        exit 1
+    fi
+
     USER_IP=$( get_new_ip )
 
     mkdir "keys/${USER}"
