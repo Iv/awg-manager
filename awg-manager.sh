@@ -20,8 +20,8 @@ function usage {
   echo " -p : Print user config"
   echo " -q : Print user QR code"
   echo " -u <user> : User identifier (uniq field for vpn account)"
-  echo " -s <server> : Server host for user connection"
-  echo " -I : Interface (default auto)"
+  echo " -s <server> : Server host for user connection (overrides SERVER_HOST from .env)"
+  echo " -I <interface> : Interface (overrides SERVER_INTERFACE from .env, default auto)"
   echo " -h, --help : Usage"
   exit 1
 }
@@ -38,7 +38,8 @@ HOME_DIR="${HOME_DIR:-/etc/amnezia/amneziawg}"
 SERVER_NAME="${SERVER_NAME:-awg0}"
 SERVER_IP_PREFIX="${SERVER_IP_PREFIX:-10.10.90}"
 SERVER_PORT="${SERVER_PORT:-43748}"
-SERVER_INTERFACE=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+SERVER_INTERFACE="${SERVER_INTERFACE:-$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)}"
+SERVER_HOST="${SERVER_HOST:$SERVER_INTERFACE}"
 
 # Support --help
 for arg in "$@"; do
@@ -59,7 +60,7 @@ while getopts ":icdpqhLUu:I:s:h" opt; do
      u) USER="$OPTARG" ;;
      I) SERVER_INTERFACE="$OPTARG" ;;
      h) usage ;;
-     s) SERVER_ENDPOINT="$OPTARG" ;;
+     s) SERVER_HOST="$OPTARG" ;;
     \?) echo "Invalid option: -$OPTARG" ; exit 1 ;;
      :) echo "Option -$OPTARG requires an argument" ; exit 1 ;;
   esac
@@ -128,8 +129,8 @@ function remove_user_from_server {
 }
 
 function init {
-    if [ -z "$SERVER_ENDPOINT" ]; then
-        echo "ERROR: Server required" >&2
+    if [ -z "$SERVER_HOST" ]; then
+        echo "ERROR: Server host required (use -s or SERVER_HOST in .env)" >&2
         exit 1
     fi
 
@@ -143,7 +144,7 @@ function init {
     echo "Interface: $SERVER_INTERFACE"
 
     mkdir -p "keys/${SERVER_NAME}"
-    echo -n "$SERVER_ENDPOINT" > "keys/.server"
+    echo -n "$SERVER_HOST" > "keys/.server"
 
     if [ ! -f "keys/${SERVER_NAME}/private.key" ]; then
         awg genkey | tee "keys/${SERVER_NAME}/private.key" | awg pubkey > "keys/${SERVER_NAME}/public.key"
@@ -256,7 +257,7 @@ function create {
         return 0
     fi
 
-    SERVER_ENDPOINT=$(cat "keys/.server")
+    local EFFECTIVE_SERVER_HOST="${SERVER_HOST:-$(cat "keys/.server")}"
     USER_IP=$( get_new_ip )
 
     mkdir "keys/${USER}"
@@ -309,7 +310,7 @@ I5 = ${I5}
 
 [Peer]
 PublicKey = ${SERVER_PUB_KEY}
-Endpoint = ${SERVER_ENDPOINT}:${SERVER_PORT}
+Endpoint = ${EFFECTIVE_SERVER_HOST}:${SERVER_PORT}
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 20
 PresharedKey = ${USER_PSK_KEY}
