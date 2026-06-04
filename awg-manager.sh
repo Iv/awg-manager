@@ -272,6 +272,10 @@ function create {
         fi
     fi
 
+    if [ -n "$SERVER_HOST" ] && [ -d "keys" ]; then
+        echo -n "$SERVER_HOST" > "keys/.server"
+    fi
+
     if [ -z "$EFFECTIVE_SERVER_HOST" ]; then
         echo "ERROR: Can't determine server host. Set SERVER_HOST in .env or use -s" >&2
         exit 1
@@ -357,6 +361,10 @@ fi
 
 if [ $CREATE ]; then
     create
+    # Update config if SERVER_HOST was provided even if user already exists
+    if [ -n "$SERVER_HOST" ] && [ -f "keys/${USER}/${USER}.conf" ]; then
+        sed -i "s|^Endpoint\s*=.*|Endpoint = ${SERVER_HOST}:${SERVER_PORT}|" "keys/${USER}/${USER}.conf"
+    fi
 fi
 
 if [ $DELETE ]; then
@@ -379,6 +387,11 @@ if [ $UNLOCK ]; then
 fi
 
 if [ $PRINT_USER_CONFIG ]; then
+    if [ -n "$SERVER_HOST" ] && [ -f "keys/${USER}/${USER}.conf" ]; then
+        sed -i "s|^Endpoint\s*=.*|Endpoint = ${SERVER_HOST}:${SERVER_PORT}|" "keys/${USER}/${USER}.conf"
+        # Also update keys/.server to persist this change
+        echo -n "$SERVER_HOST" > "keys/.server"
+    fi
     cat "keys/${USER}/${USER}.conf"
 elif [ $PRINT_QR_CODE ]; then
     qrencode -t ansiutf8 < "keys/${USER}/${USER}.conf"
