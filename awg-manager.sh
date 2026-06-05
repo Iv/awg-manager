@@ -163,25 +163,31 @@ function init {
 
     SERVER_PVT_KEY=$(cat "keys/$SERVER_NAME/private.key")
 
-    if [ ! -f "keys/params.conf" ]; then
-        JC=$(( RANDOM % 11 ))
-        JMIN=$(( 64 + RANDOM % 448 ))
-        JMAX=$(( JMIN + RANDOM % (1025 - JMIN) ))
-        S1=$(( RANDOM % 65 ))
-        S2=$(( RANDOM % 65 ))
-        S3=$(( RANDOM % 65 ))
-        S4=$(( RANDOM % 33 ))
-        H1=$(( RANDOM << 16 | RANDOM ))
-        H2=$(( RANDOM << 16 | RANDOM ))
-        H3=$(( RANDOM << 16 | RANDOM ))
-        H4=$(( RANDOM << 16 | RANDOM ))
-        I1=$(openssl rand -hex 16)
-        I2=$(openssl rand -hex 16)
-        I3=$(openssl rand -hex 16)
-        I4=$(openssl rand -hex 16)
-        I5=$(openssl rand -hex 16)
+    PARAMS_FILE="keys/${SERVER_NAME}/params.conf"
 
-        cat <<EOF > "keys/params.conf"
+    if [ ! -f "$PARAMS_FILE" ]; then
+        # Check for legacy params.conf and move it if exists
+        if [ -f "keys/params.conf" ]; then
+            mv "keys/params.conf" "$PARAMS_FILE"
+        else
+            JC=$(( RANDOM % 11 ))
+            JMIN=$(( 64 + RANDOM % 448 ))
+            JMAX=$(( JMIN + RANDOM % (1025 - JMIN) ))
+            S1=$(( RANDOM % 65 ))
+            S2=$(( RANDOM % 65 ))
+            S3=$(( RANDOM % 65 ))
+            S4=$(( RANDOM % 33 ))
+            H1=$(( RANDOM << 16 | RANDOM ))
+            H2=$(( RANDOM << 16 | RANDOM ))
+            H3=$(( RANDOM << 16 | RANDOM ))
+            H4=$(( RANDOM << 16 | RANDOM ))
+            I1=$(openssl rand -hex 16)
+            I2=$(openssl rand -hex 16)
+            I3=$(openssl rand -hex 16)
+            I4=$(openssl rand -hex 16)
+            I5=$(openssl rand -hex 16)
+
+            cat <<EOF > "$PARAMS_FILE"
 JC=${JC}
 JMIN=${JMIN}
 JMAX=${JMAX}
@@ -199,26 +205,27 @@ I3=${I3}
 I4=${I4}
 I5=${I5}
 EOF
+        fi
     fi
 
-    source "keys/params.conf" 2>/dev/null || {
+    source "$PARAMS_FILE" 2>/dev/null || {
         # Fallback if source fails
-        JC=$(grep "^JC\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        JMIN=$(grep "^JMIN\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        JMAX=$(grep "^JMAX\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        S1=$(grep "^S1\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        S2=$(grep "^S2\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        S3=$(grep "^S3\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        S4=$(grep "^S4\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        H1=$(grep "^H1\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        H2=$(grep "^H2\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        H3=$(grep "^H3\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        H4=$(grep "^H4\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        I1=$(grep "^I1\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        I2=$(grep "^I2\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        I3=$(grep "^I3\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        I4=$(grep "^I4\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-        I5=$(grep "^I5\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
+        JC=$(grep "^JC\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        JMIN=$(grep "^JMIN\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        JMAX=$(grep "^JMAX\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        S1=$(grep "^S1\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        S2=$(grep "^S2\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        S3=$(grep "^S3\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        S4=$(grep "^S4\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        H1=$(grep "^H1\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        H2=$(grep "^H2\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        H3=$(grep "^H3\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        H4=$(grep "^H4\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        I1=$(grep "^I1\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        I2=$(grep "^I2\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        I3=$(grep "^I3\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        I4=$(grep "^I4\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+        I5=$(grep "^I5\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
     }
 
 cat <<EOF > "$SERVER_NAME.conf"
@@ -292,22 +299,23 @@ function create {
     USER_PSK_KEY=$(cat "keys/${USER}/psk.key")
     SERVER_PUB_KEY=$(cat "keys/$SERVER_NAME/public.key")
 
-    JC=$(grep "^JC\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    JMIN=$(grep "^JMIN\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    JMAX=$(grep "^JMAX\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    S1=$(grep "^S1\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    S2=$(grep "^S2\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    S3=$(grep "^S3\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    S4=$(grep "^S4\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    H1=$(grep "^H1\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    H2=$(grep "^H2\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    H3=$(grep "^H3\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    H4=$(grep "^H4\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    I1=$(grep "^I1\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    I2=$(grep "^I2\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    I3=$(grep "^I3\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    I4=$(grep "^I4\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
-    I5=$(grep "^I5\s*=" "keys/params.conf" | cut -d'=' -f2 | tr -d ' ')
+    PARAMS_FILE="keys/${SERVER_NAME}/params.conf"
+    JC=$(grep "^JC\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    JMIN=$(grep "^JMIN\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    JMAX=$(grep "^JMAX\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    S1=$(grep "^S1\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    S2=$(grep "^S2\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    S3=$(grep "^S3\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    S4=$(grep "^S4\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    H1=$(grep "^H1\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    H2=$(grep "^H2\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    H3=$(grep "^H3\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    H4=$(grep "^H4\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    I1=$(grep "^I1\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    I2=$(grep "^I2\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    I3=$(grep "^I3\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    I4=$(grep "^I4\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
+    I5=$(grep "^I5\s*=" "$PARAMS_FILE" | cut -d'=' -f2 | tr -d ' ')
 
 cat <<EOF > "keys/${USER}/${USER}.conf"
 [Interface]
