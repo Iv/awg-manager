@@ -41,9 +41,9 @@ SERVER_PORT="${SERVER_PORT:-43748}"
 SERVER_INTERFACE="${SERVER_INTERFACE:-$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)}"
 SERVER_HOST="${SERVER_HOST}"
 
-# Support --help
+# Support --help, help, usage
 for arg in "$@"; do
-  if [ "$arg" == "--help" ]; then
+  if [ "$arg" == "--help" ] || [ "$arg" == "help" ] || [ "$arg" == "usage" ]; then
     usage
   fi
 done
