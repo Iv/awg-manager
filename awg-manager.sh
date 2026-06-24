@@ -36,6 +36,7 @@ fi
 
 HOME_DIR="${HOME_DIR:-/etc/amnezia/amneziawg}"
 SERVER_NAME="${SERVER_NAME:-awg0}"
+KEYS_DIR="keys/${SERVER_NAME}"
 SERVER_IP_PREFIX="${SERVER_IP_PREFIX:-10.10.90}"
 SERVER_PORT="${SERVER_PORT:-43748}"
 SERVER_INTERFACE="${SERVER_INTERFACE:-$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)}"
@@ -75,7 +76,7 @@ function reload_server {
 function get_new_ip {
     declare -A IP_EXISTS
 
-    for IP in $(grep -i 'Address\s*=\s*' keys/*/*.conf | sed 's/\/[0-9]\+$//' | grep -Po '\d+$')
+    for IP in $(grep -i 'Address\s*=\s*' "${KEYS_DIR}"/*/*.conf 2>/dev/null | sed 's/\/[0-9]\+$//' | grep -Po '\d+$')
     do
         IP_EXISTS[$IP]=1
     done
@@ -94,14 +95,14 @@ function get_new_ip {
 }
 
 function add_user_to_server {
-    if [ ! -f "keys/${USER}/public.key" ]; then
+    if [ ! -f "${KEYS_DIR}/${USER}/public.key" ]; then
         echo "ERROR: User not exists" >&2
         exit 1
     fi
 
-    local USER_PUB_KEY=$(cat "keys/${USER}/public.key")
-    local USER_PSK_KEY=$(cat "keys/$USER/psk.key")
-    local USER_IP=$(grep -i Address "keys/${USER}/${USER}.conf" | sed 's/Address\s*=\s*//i; s/\/.*//')
+    local USER_PUB_KEY=$(cat "${KEYS_DIR}/${USER}/public.key")
+    local USER_PSK_KEY=$(cat "${KEYS_DIR}/$USER/psk.key")
+    local USER_IP=$(grep -i Address "${KEYS_DIR}/${USER}/${USER}.conf" | sed 's/Address\s*=\s*//i; s/\/.*//')
 
     if grep "# BEGIN ${USER}$" "$SERVER_NAME.conf" >/dev/null ; then
         echo "User already exists"
@@ -122,8 +123,8 @@ EOF
 
 function remove_user_from_server {
     sed -i "/# BEGIN ${USER}$/,/# END ${USER}$/d" "$SERVER_NAME.conf"
-    if [ -f "keys/${USER}/${USER}.conf" ]; then
-        local USER_IP=$(grep -i Address "keys/${USER}/${USER}.conf" | sed 's/Address\s*=\s*//i; s/\/.*//')
+    if [ -f "${KEYS_DIR}/${USER}/${USER}.conf" ]; then
+        local USER_IP=$(grep -i Address "${KEYS_DIR}/${USER}/${USER}.conf" | sed 's/Address\s*=\s*//i; s/\/.*//')
         ip -4 route del ${USER_IP}/32 dev ${SERVER_NAME} || true
     fi
 }
@@ -149,11 +150,11 @@ function init {
     echo "Interface: $SERVER_INTERFACE"
     echo "Server Host: $EFFECTIVE_SERVER_HOST"
 
-    mkdir -p "keys/${SERVER_NAME}"
-    echo -n "$EFFECTIVE_SERVER_HOST" > "keys/.server"
+    mkdir -p "${KEYS_DIR}/server"
+    echo -n "$EFFECTIVE_SERVER_HOST" > "${KEYS_DIR}/.server"
 
-    if [ ! -f "keys/${SERVER_NAME}/private.key" ]; then
-        awg genkey | tee "keys/${SERVER_NAME}/private.key" | awg pubkey > "keys/${SERVER_NAME}/public.key"
+    if [ ! -f "${KEYS_DIR}/server/private.key" ]; then
+        awg genkey | tee "${KEYS_DIR}/server/private.key" | awg pubkey > "${KEYS_DIR}/server/public.key"
     fi
 
     if [ -f "$SERVER_NAME.conf" ]; then
@@ -161,25 +162,29 @@ function init {
         exit 0
     fi
 
-    SERVER_PVT_KEY=$(cat "keys/$SERVER_NAME/private.key")
+    SERVER_PVT_KEY=$(cat "${KEYS_DIR}/server/private.key")
 
     JC=$(( RANDOM % 11 ))
     JMIN=$(( 64 + RANDOM % 448 ))
     JMAX=$(( JMIN + RANDOM % (1025 - JMIN) ))
-    S1=$(( RANDOM % 129 ))
-    S2=$(( RANDOM % 129 ))
-    while [ $((S1 + 56)) -eq $S2 ]; do S2=$(( RANDOM % 129 )); done
-    S3=$(( RANDOM % 129 ))
-    S4=$(( RANDOM % 25 ))
-    H1=$(( 5 + RANDOM % 1000000 ))
-    H2=$(( 1000005 + RANDOM % 1000000 ))
-    H3=$(( 2000005 + RANDOM % 1000000 ))
-    H4=$(( 3000005 + RANDOM % 1000000 ))
-    I1="<r 2><b $(openssl rand -hex 16)>"
-    I2="<b $(openssl rand -hex 16)>"
-    I3="<b $(openssl rand -hex 16)>"
-    I4="<b $(openssl rand -hex 16)>"
-    I5="<b $(openssl rand -hex 16)>"
+    S1=$(( RANDOM % 65 ))
+    S2=$(( RANDOM % 65 ))
+    while [ $((S1 + 56)) -eq $S2 ]; do S2=$(( RANDOM % 65 )); done
+    S3=$(( RANDOM % 65 ))
+    S4=$(( RANDOM % 33 ))
+    H1=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) ))
+    while [ $H1 -ge 1 -a $H1 -le 4 ]; do H1=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) )); done
+    H2=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) ))
+    while [ "$H1" -eq "$H2" ] || [ $H2 -ge 1 -a $H2 -le 4 ]; do H2=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) )); done
+    H3=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) ))
+    while [ "$H1" -eq "$H3" ] || [ "$H2" -eq "$H3" ] || [ $H3 -ge 1 -a $H3 -le 4 ]; do H3=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) )); done
+    H4=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) ))
+    while [ "$H1" -eq "$H4" ] || [ "$H2" -eq "$H4" ] || [ "$H3" -eq "$H4" ] || [ $H4 -ge 1 -a $H4 -le 4 ]; do H4=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) )); done
+    I1=$(openssl rand -hex 16 | tr '[:lower:]' '[:upper:]'); I1="<b 0x${I1}>"
+    I2=$(openssl rand -hex 16 | tr '[:lower:]' '[:upper:]'); I2="<b 0x${I2}>"
+    I3=$(openssl rand -hex 16 | tr '[:lower:]' '[:upper:]'); I3="<b 0x${I3}>"
+    I4=$(openssl rand -hex 16 | tr '[:lower:]' '[:upper:]'); I4="<b 0x${I4}>"
+    I5=$(openssl rand -hex 16 | tr '[:lower:]' '[:upper:]'); I5="<b 0x${I5}>"
 
 cat <<EOF > "$SERVER_NAME.conf"
 [Interface]
@@ -218,22 +223,22 @@ EOF
 }
 
 function create {
-    if [ -f "keys/${USER}/${USER}.conf" ]; then
+    if [ -f "${KEYS_DIR}/${USER}/${USER}.conf" ]; then
         echo "WARNING: key ${USER}.conf already exists" >&2
         return 0
     fi
 
     local EFFECTIVE_SERVER_HOST="${SERVER_HOST}"
     if [ -z "$EFFECTIVE_SERVER_HOST" ]; then
-        if [ -f "keys/.server" ]; then
-            EFFECTIVE_SERVER_HOST=$(cat "keys/.server")
+        if [ -f "${KEYS_DIR}/.server" ]; then
+            EFFECTIVE_SERVER_HOST=$(cat "${KEYS_DIR}/.server")
         else
             EFFECTIVE_SERVER_HOST=$(ip -4 addr show dev "$SERVER_INTERFACE" | grep -Po '(?<=inet )(\d+\.\d+\.\d+\.\d+)' | head -1)
         fi
     fi
 
-    if [ -n "$SERVER_HOST" ] && [ -d "keys" ]; then
-        echo -n "$SERVER_HOST" > "keys/.server"
+    if [ -n "$SERVER_HOST" ] && [ -d "${KEYS_DIR}" ]; then
+        echo -n "$SERVER_HOST" > "${KEYS_DIR}/.server"
     fi
 
     if [ -z "$EFFECTIVE_SERVER_HOST" ]; then
@@ -243,14 +248,14 @@ function create {
 
     USER_IP=$( get_new_ip )
 
-    mkdir "keys/${USER}"
-    awg genkey | tee "keys/${USER}/private.key" | awg pubkey > "keys/${USER}/public.key"
-    awg genpsk > "keys/${USER}/psk.key"
+    mkdir -p "${KEYS_DIR}/${USER}"
+    awg genkey | tee "${KEYS_DIR}/${USER}/private.key" | awg pubkey > "${KEYS_DIR}/${USER}/public.key"
+    awg genpsk > "${KEYS_DIR}/${USER}/psk.key"
 
-    USER_PVT_KEY=$(cat "keys/${USER}/private.key")
-    USER_PUB_KEY=$(cat "keys/${USER}/public.key")
-    USER_PSK_KEY=$(cat "keys/${USER}/psk.key")
-    SERVER_PUB_KEY=$(cat "keys/$SERVER_NAME/public.key")
+    USER_PVT_KEY=$(cat "${KEYS_DIR}/${USER}/private.key")
+    USER_PUB_KEY=$(cat "${KEYS_DIR}/${USER}/public.key")
+    USER_PSK_KEY=$(cat "${KEYS_DIR}/${USER}/psk.key")
+    SERVER_PUB_KEY=$(cat "${KEYS_DIR}/server/public.key")
 
     local SERVER_CONF="$SERVER_NAME.conf"
     JC=$(grep -i "^Jc\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
@@ -270,7 +275,7 @@ function create {
     I4=$(grep -i "^I4\s*=" "$SERVER_CONF" | sed 's/^I4\s*=\s*//i')
     I5=$(grep -i "^I5\s*=" "$SERVER_CONF" | sed 's/^I5\s*=\s*//i')
 
-cat <<EOF > "keys/${USER}/${USER}.conf"
+cat <<EOF > "${KEYS_DIR}/${USER}/${USER}.conf"
 [Interface]
 PrivateKey = ${USER_PVT_KEY}
 Address = ${USER_IP}
@@ -310,7 +315,7 @@ if [ $INIT ]; then
     exit 0;
 fi
 
-if [ ! -f "keys/$SERVER_NAME/public.key" ]; then
+if [ ! -f "${KEYS_DIR}/server/public.key" ]; then
     echo "ERROR: Run init script before" >&2
     exit 2
 fi
@@ -323,15 +328,15 @@ fi
 if [ $CREATE ]; then
     create
     # Update config if SERVER_HOST was provided even if user already exists
-    if [ -n "$SERVER_HOST" ] && [ -f "keys/${USER}/${USER}.conf" ]; then
-        sed -i "s|^Endpoint\s*=.*|Endpoint = ${SERVER_HOST}:${SERVER_PORT}|" "keys/${USER}/${USER}.conf"
+    if [ -n "$SERVER_HOST" ] && [ -f "${KEYS_DIR}/${USER}/${USER}.conf" ]; then
+        sed -i "s|^Endpoint\s*=.*|Endpoint = ${SERVER_HOST}:${SERVER_PORT}|" "${KEYS_DIR}/${USER}/${USER}.conf"
     fi
 fi
 
 if [ $DELETE ]; then
     remove_user_from_server
     reload_server
-    rm -rf "keys/${USER}"
+    rm -rf "${KEYS_DIR}/${USER}"
     exit 0
 fi
 
@@ -348,14 +353,14 @@ if [ $UNLOCK ]; then
 fi
 
 if [ $PRINT_USER_CONFIG ]; then
-    if [ -n "$SERVER_HOST" ] && [ -f "keys/${USER}/${USER}.conf" ]; then
-        sed -i "s|^Endpoint\s*=.*|Endpoint = ${SERVER_HOST}:${SERVER_PORT}|" "keys/${USER}/${USER}.conf"
+    if [ -n "$SERVER_HOST" ] && [ -f "${KEYS_DIR}/${USER}/${USER}.conf" ]; then
+        sed -i "s|^Endpoint\s*=.*|Endpoint = ${SERVER_HOST}:${SERVER_PORT}|" "${KEYS_DIR}/${USER}/${USER}.conf"
         # Also update keys/.server to persist this change
-        echo -n "$SERVER_HOST" > "keys/.server"
+        echo -n "$SERVER_HOST" > "${KEYS_DIR}/.server"
     fi
-    cat "keys/${USER}/${USER}.conf"
+    cat "${KEYS_DIR}/${USER}/${USER}.conf"
 elif [ $PRINT_QR_CODE ]; then
-    qrencode -t ansiutf8 < "keys/${USER}/${USER}.conf"
+    qrencode -t ansiutf8 < "${KEYS_DIR}/${USER}/${USER}.conf"
 fi
 
 
