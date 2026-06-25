@@ -172,14 +172,10 @@ function init {
     while [ $((S1 + 56)) -eq $S2 ]; do S2=$(( RANDOM % 65 )); done
     S3=$(( RANDOM % 65 ))
     S4=$(( RANDOM % 33 ))
-    H1=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) ))
-    while [ $H1 -ge 1 -a $H1 -le 4 ]; do H1=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) )); done
-    H2=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) ))
-    while [ "$H1" -eq "$H2" ] || [ $H2 -ge 1 -a $H2 -le 4 ]; do H2=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) )); done
-    H3=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) ))
-    while [ "$H1" -eq "$H3" ] || [ "$H2" -eq "$H3" ] || [ $H3 -ge 1 -a $H3 -le 4 ]; do H3=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) )); done
-    H4=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) ))
-    while [ "$H1" -eq "$H4" ] || [ "$H2" -eq "$H4" ] || [ "$H3" -eq "$H4" ] || [ $H4 -ge 1 -a $H4 -le 4 ]; do H4=$(( (RANDOM << 17) | (RANDOM << 2) | (RANDOM % 4) )); done
+    H1=$(( 471800590 + RANDOM % 101 ))
+    H2=$(( 1246894907 + RANDOM % 94 ))
+    H3=$(( 923637689 + RANDOM % 2 ))
+    H4=$(( 1769581055 + RANDOM % 100000001 ))
     I1=$(openssl rand -hex 16 | tr '[:lower:]' '[:upper:]'); I1="<b 0x${I1}>"
     I2=$(openssl rand -hex 16 | tr '[:lower:]' '[:upper:]'); I2="<b 0x${I2}>"
     I3=$(openssl rand -hex 16 | tr '[:lower:]' '[:upper:]'); I3="<b 0x${I3}>"
