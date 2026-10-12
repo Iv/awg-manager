@@ -129,6 +129,33 @@ function remove_user_from_server {
     fi
 }
 
+# Legacy layout: keys/<server>/{private,public}.key, keys/<user>/, keys/.server
+# New layout:    keys/<server>/server/{private,public}.key, keys/<server>/<user>/, keys/<server>/.server
+function migrate_legacy_layout {
+    if [ ! -f "${KEYS_DIR}/public.key" ] || [ -d "${KEYS_DIR}/server" ]; then
+        return 0
+    fi
+
+    echo "Migrating legacy keys layout to ${KEYS_DIR}" >&2
+    mkdir -p "${KEYS_DIR}/server"
+    mv "${KEYS_DIR}/private.key" "${KEYS_DIR}/public.key" "${KEYS_DIR}/server/"
+
+    if [ -f "keys/.server" ] && [ ! -f "${KEYS_DIR}/.server" ]; then
+        cp "keys/.server" "${KEYS_DIR}/.server"
+    fi
+
+    # Users belong to this server if their address is in SERVER_IP_PREFIX subnet
+    local CONF DIR NAME
+    for CONF in keys/*/*.conf; do
+        DIR=$(dirname "$CONF")
+        NAME=$(basename "$DIR")
+        [ "$CONF" == "${DIR}/${NAME}.conf" ] || continue
+        grep -qiP "^Address\s*=\s*${SERVER_IP_PREFIX//./\\.}\.\d+(/|\s|$)" "$CONF" || continue
+        echo "  ${NAME} -> ${KEYS_DIR}/${NAME}" >&2
+        mv "$DIR" "${KEYS_DIR}/${NAME}"
+    done
+}
+
 function init {
     local EFFECTIVE_SERVER_HOST="${SERVER_HOST}"
     if [ -z "$EFFECTIVE_SERVER_HOST" ]; then
@@ -304,7 +331,14 @@ EOF
     reload_server
 }
 
-cd $HOME_DIR
+if [ "$EUID" -ne 0 ]; then
+    echo "ERROR: Run as root" >&2
+    exit 1
+fi
+
+cd "$HOME_DIR"
+
+migrate_legacy_layout
 
 if [ $INIT ]; then
     init
