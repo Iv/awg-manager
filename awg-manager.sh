@@ -280,45 +280,15 @@ function create {
     USER_PSK_KEY=$(cat "${KEYS_DIR}/${USER}/psk.key")
     SERVER_PUB_KEY=$(cat "${KEYS_DIR}/server/public.key")
 
-    local SERVER_CONF="$SERVER_NAME.conf"
-    JC=$(grep -i "^Jc\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
-    JMIN=$(grep -i "^Jmin\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
-    JMAX=$(grep -i "^Jmax\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
-    S1=$(grep -i "^S1\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
-    S2=$(grep -i "^S2\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
-    S3=$(grep -i "^S3\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
-    S4=$(grep -i "^S4\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
-    H1=$(grep -i "^H1\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
-    H2=$(grep -i "^H2\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
-    H3=$(grep -i "^H3\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
-    H4=$(grep -i "^H4\s*=" "$SERVER_CONF" | cut -d'=' -f2 | tr -d ' ')
-    I1=$(grep -i "^I1\s*=" "$SERVER_CONF" | sed 's/^I1\s*=\s*//i')
-    I2=$(grep -i "^I2\s*=" "$SERVER_CONF" | sed 's/^I2\s*=\s*//i')
-    I3=$(grep -i "^I3\s*=" "$SERVER_CONF" | sed 's/^I3\s*=\s*//i')
-    I4=$(grep -i "^I4\s*=" "$SERVER_CONF" | sed 's/^I4\s*=\s*//i')
-    I5=$(grep -i "^I5\s*=" "$SERVER_CONF" | sed 's/^I5\s*=\s*//i')
+    # Copy only non-empty obfuscation params from server config (awg rejects empty values)
+    local AWG_PARAMS=$(grep -iP "^(Jc|Jmin|Jmax|S[1-4]|H[1-4]|I[1-5])\s*=\s*\S" "$SERVER_NAME.conf")
 
 cat <<EOF > "${KEYS_DIR}/${USER}/${USER}.conf"
 [Interface]
 PrivateKey = ${USER_PVT_KEY}
 Address = ${USER_IP}
 DNS = 8.8.8.8, 8.8.4.4
-Jc = ${JC}
-Jmin = ${JMIN}
-Jmax = ${JMAX}
-S1 = ${S1}
-S2 = ${S2}
-S3 = ${S3}
-S4 = ${S4}
-H1 = ${H1}
-H2 = ${H2}
-H3 = ${H3}
-H4 = ${H4}
-I1 = ${I1}
-I2 = ${I2}
-I3 = ${I3}
-I4 = ${I4}
-I5 = ${I5}
+${AWG_PARAMS}
 
 [Peer]
 PublicKey = ${SERVER_PUB_KEY}
