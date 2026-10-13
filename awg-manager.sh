@@ -31,7 +31,17 @@ umask 0077
 
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 if [ -f "${SCRIPT_DIR}/.env" ]; then
+    # Variables set in the environment take precedence over .env
+    declare -A ENV_OVERRIDES
+    for VAR in HOME_DIR SERVER_NAME SERVER_IP_PREFIX SERVER_PORT SERVER_INTERFACE SERVER_HOST; do
+        if [ -n "${!VAR+x}" ]; then
+            ENV_OVERRIDES[$VAR]="${!VAR}"
+        fi
+    done
     source "${SCRIPT_DIR}/.env"
+    for VAR in "${!ENV_OVERRIDES[@]}"; do
+        printf -v "$VAR" '%s' "${ENV_OVERRIDES[$VAR]}"
+    done
 fi
 
 HOME_DIR="${HOME_DIR:-/etc/amnezia/amneziawg}"

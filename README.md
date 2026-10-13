@@ -43,6 +43,7 @@ cp .env.example .env
 | `SERVER_HOST` | — | Host/IP clients connect to; `-s` overrides it |
 
 All variables are optional: missing ones fall back to the defaults above.
+Variables set in the environment take precedence over `.env` (see below).
 
 ### Server host
 
@@ -62,7 +63,8 @@ SERVER_NAME=awg1 SERVER_IP_PREFIX=10.10.91 SERVER_PORT=43749 ./awg-manager.sh -i
 SERVER_NAME=awg1 SERVER_IP_PREFIX=10.10.91 ./awg-manager.sh -c -u my_user
 ```
 
-> Values from `.env` override variables set in the environment, so remove them from `.env` if you pass them on the command line.
+Variables passed this way override the values from `.env`. With `sudo` put them after `sudo`
+(`sudo SERVER_NAME=awg1 SERVER_IP_PREFIX=10.10.91 ./awg-manager.sh ...`), because `sudo` resets the environment.
 
 ## Files layout
 
