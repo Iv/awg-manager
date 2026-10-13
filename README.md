@@ -65,6 +65,18 @@ make install
 ./awg-manager.sh -u Username -c
 ```
 
+## User IP allocation
+
+On `-c` each user gets the first free address `SERVER_IP_PREFIX.2` … `SERVER_IP_PREFIX.254` (`.1` is the server).
+An address is considered taken if it is found in any of:
+
+ - `Address` in user configs `keys/<server>/<user>/<user>.conf`
+ - `Address` / `AllowedIPs` in the server config `<server>.conf` (including peers without a keys dir or edited manually)
+ - allowed IPs of the running interface (`awg show <server> allowed-ips`)
+
+Only single addresses (`/32` or without mask) from the `SERVER_IP_PREFIX` subnet are counted; routed subnets in `AllowedIPs` are ignored.
+If you change a peer address by hand, keep the user config `Address` and the server `AllowedIPs` in sync.
+
 ## Usage amneziawg-go
 
 Simply run:
