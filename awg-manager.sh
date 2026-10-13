@@ -75,8 +75,14 @@ function reload_server {
 
 function get_new_ip {
     declare -A IP_EXISTS
+    local PREFIX_RE="${SERVER_IP_PREFIX//./\\.}"
 
-    for IP in $(grep -i 'Address\s*=\s*' "${KEYS_DIR}"/*/*.conf 2>/dev/null | sed 's/\/[0-9]\+$//' | grep -Po '\d+$')
+    # Collect host octets of SERVER_IP_PREFIX addresses already in use:
+    # user configs, peers in server config (incl. users without keys dir) and the running interface
+    for IP in $( {
+            grep -hiP '^\s*(Address|AllowedIPs)\s*=' "${KEYS_DIR}"/*/*.conf "$SERVER_NAME.conf" 2>/dev/null
+            awg show "${SERVER_NAME}" allowed-ips 2>/dev/null
+        } | grep -Po "(?<![\d.])${PREFIX_RE}\.\K\d+(?=(/32)?(\s|,|$))" || true )
     do
         IP_EXISTS[$IP]=1
     done
