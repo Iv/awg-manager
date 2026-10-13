@@ -16,10 +16,79 @@ Options:
  -p : Print user config
  -q : Print user QR code
  -u <user> : User identifier (uniq field for vpn account)
- -s <server> : Server host for user connection
- -I : Interface (default auto)
- -h : Usage
- ```
+ -s <server> : Server host for user connection (overrides SERVER_HOST from .env)
+ -I <interface> : Interface (overrides SERVER_INTERFACE from .env, default auto)
+ -h, --help : Usage
+```
+
+The script must be run as root. It works in `HOME_DIR` (`/etc/amnezia/amneziawg` by default),
+so server configs and the `keys/` directory are always created there regardless of the current directory.
+
+## Configuration (.env)
+
+Settings are read from `.env` located next to `awg-manager.sh` (`.env` is not tracked by git).
+Copy the template and edit it:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Default | Description |
+|---|---|---|
+| `HOME_DIR` | `/etc/amnezia/amneziawg` | Directory with server configs and `keys/` |
+| `SERVER_NAME` | `awg0` | Interface / server config name (`<SERVER_NAME>.conf`) |
+| `SERVER_IP_PREFIX` | `10.10.90` | First three octets of the VPN subnet (server gets `.1`) |
+| `SERVER_PORT` | `43748` | UDP listen port |
+| `SERVER_INTERFACE` | auto (default route) | External interface for NAT; `-I` overrides it |
+| `SERVER_HOST` | — | Host/IP clients connect to; `-s` overrides it |
+
+All variables are optional: missing ones fall back to the defaults above.
+
+### Server host
+
+The `Endpoint` host for a new user is taken from (first found):
+`-s` option → `SERVER_HOST` in `.env` → `keys/<server>/.server` (saved on init) → IP of `SERVER_INTERFACE`.
+
+If a host is passed via `-s` (or set in `.env`) together with `-c` or `-p`, the `Endpoint` of an existing user config is updated,
+and with `-p` the host is also saved to `keys/<server>/.server`.
+
+### Several servers on one host
+
+Each server is a separate `SERVER_NAME` with its own `SERVER_IP_PREFIX` and `SERVER_PORT`.
+Switch between them by editing `.env` or by setting variables for a single run, e.g.:
+
+```bash
+SERVER_NAME=awg1 SERVER_IP_PREFIX=10.10.91 SERVER_PORT=43749 ./awg-manager.sh -i -s YOUR_SERVER_IP
+SERVER_NAME=awg1 SERVER_IP_PREFIX=10.10.91 ./awg-manager.sh -c -u my_user
+```
+
+> Values from `.env` override variables set in the environment, so remove them from `.env` if you pass them on the command line.
+
+## Files layout
+
+```
+HOME_DIR/
+  <server>.conf               # server config (awg0.conf, awg1.conf, ...)
+  keys/<server>/
+    .server                   # saved server host
+    server/private.key        # server keys
+    server/public.key
+    <user>/<user>.conf        # client config
+    <user>/{private,public,psk}.key
+```
+
+### Migration from the old layout
+
+Older versions kept server keys in `keys/<server>/{private,public}.key` and users in `keys/<user>/`, `keys/.server`.
+On any run the script detects the old layout for `SERVER_NAME` and moves it automatically:
+server keys go to `keys/<server>/server/`, `keys/.server` is copied to `keys/<server>/.server`, and user directories
+whose `Address` belongs to `SERVER_IP_PREFIX` are moved to `keys/<server>/<user>/`.
+
+## Obfuscation parameters
+
+On init (`-i`) AmneziaWG parameters `Jc`, `Jmin`, `Jmax`, `S1`–`S4`, `H1`–`H4`, `I1`–`I5` are generated randomly
+and written to the server config. There is no separate params file: on user creation the parameters are copied
+from `<server>.conf` into the client config. Parameters with empty values are skipped, because `awg` rejects them.
 
 ## Quick start
 
